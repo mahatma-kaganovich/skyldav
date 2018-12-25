@@ -236,6 +236,13 @@ void VirusScan::releaseEngine() {
     pthread_mutex_unlock(&mutexEngine);
 }
 
+#ifndef CL_SCAN_STDOPT
+const struct cl_scan_options options = {
+.general = CL_SCAN_GENERAL_ALLMATCHES,
+.parse = ~0
+};
+#endif
+
 /**
  * @brief Scans file for virus.
  *
@@ -244,9 +251,13 @@ void VirusScan::releaseEngine() {
 int VirusScan::scan(const int fd) {
     int success = SCANOK;
     int ret;
-    const char *virname;
+    const char *virname = NULL;
 
+#ifdef CL_SCAN_STDOPT
     ret = cl_scandesc(fd, &virname, NULL, getEngine(), CL_SCAN_STDOPT);
+#else
+    ret = cl_scandesc(fd, NULL, &virname, NULL, getEngine(), &options);
+#endif
     switch (ret) {
         case CL_CLEAN:
             success = SCANOK;

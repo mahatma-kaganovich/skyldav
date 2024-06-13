@@ -43,6 +43,8 @@
 #include "skyldav.h"
 #include "StringSet.h"
 
+char *PID_FILE = "/var/run/skyldav/skyldav.pid";
+
 /**
  * @brief Callback function for reading configuration file.
  *
@@ -100,6 +102,24 @@ static int configurationCallback(const char *key, const char *value, void *info)
             ret = 1;
         }
         e->setNumberOfThreads(nThread);
+    } else if (!strcmp(key, "CHMOD000")) {
+        chmod000 = 1;
+    } else if (!strcmp(key, "CHMOD000")) {
+        PID_FILE = strdup(value);
+    } else if (!strcmp(key, "SCAN_OPTIONS")) {
+#ifndef CL_SCAN_STDOPT
+        uint32_t *op = (void*)&options;
+        int i = 0;
+
+        while (op < (void*)&options + sizeof(options) && value[i]) {
+            while ((value[i] < '0' || value[i] > '9') && value[i]) i++;
+            while (value[i] >= '0' && value[i] <= '9') {
+                *op = (*op)*10 + (value[i] - '0');
+                i++;
+            }
+            op++;
+        }
+#endif
     } else {
         ret = 1;
     }

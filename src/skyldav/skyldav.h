@@ -61,8 +61,6 @@ const char *VERSION_TEXT =
     "language governing permissions and limitations under the\n"
     "License.\n";
 
-const char *PID_FILE = "/var/run/skyldav/skyldav.pid";
-
 const char *SYSLOG_ID = "skyldav";
 
 #ifdef	__cplusplus

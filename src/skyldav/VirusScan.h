@@ -114,4 +114,9 @@ private:
 }
 #endif
 
+#ifndef CL_SCAN_STDOPT
+extern struct cl_scan_options options;
+#endif
+extern int chmod000;
+
 #endif	/* VIRUSSCAN_H */

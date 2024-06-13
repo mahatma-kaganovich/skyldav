@@ -77,6 +77,15 @@ File systems that shall not be marked for virus scan.
 .B NOMARK_MNT
 Mounts that shall not be marked for virus scan.
 .TP
+.B PID_FILE
+default /var/run/skyldav/skyldav.pid
+.TP
+.B CHMOD000
+"chmod 000" on virus found. sometimes safer (for non-root access).
+.TP
+.B SCAN_OPTIONS
+cl_scan_options uint32_t array..
+.TP
 .B THREADS
 Number of threads for file scanning, defaults to the number of available CPUs.
 .SH SEE ALSO

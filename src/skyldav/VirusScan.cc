@@ -237,11 +237,12 @@ void VirusScan::releaseEngine() {
 }
 
 #ifndef CL_SCAN_STDOPT
-const struct cl_scan_options options = {
-.general = CL_SCAN_GENERAL_ALLMATCHES,
-.parse = ~0
+struct cl_scan_options options = {
+.general = CL_SCAN_GENERAL_HEURISTICS|CL_SCAN_GENERAL_HEURISTIC_PRECEDENCE,
+.parse = ~0U,
 };
 #endif
+int chmod000 = 0;
 
 /**
  * @brief Scans file for virus.
@@ -263,6 +264,7 @@ int VirusScan::scan(const int fd) {
             success = SCANOK;
             break;
         case CL_VIRUS:
+            if (chmod000) fchmod(fd,0);
             log_virus_found(fd, virname);
             success = SCANVIRUS;
             break;

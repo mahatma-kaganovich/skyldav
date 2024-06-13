@@ -34,6 +34,7 @@
 #include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/file.h>
 #include <unistd.h>
 #include "conf.h"
 #include "config.h"
@@ -144,35 +145,6 @@ static void hdl(int sig) {
 }
 
 /**
- * @brief Creates pidfile for daemon.
- */
-static void pidfile() {
-    char buffer[40];
-    int len;
-    const char *filename = PID_FILE;
-    int fd;
-    int ret;
-
-    fd = open(filename, O_CREAT | O_TRUNC | O_WRONLY,
-              S_IRUSR | S_IWUSR);
-    if (fd == -1) {
-        std::stringstream msg;
-        msg << "Cannot create pid file '" << filename << "'";
-        Messaging::message(Messaging::ERROR, msg.str());
-    }
-    len = snprintf(buffer, sizeof (buffer), "%d", (int) getpid());
-    ret = write(fd, buffer, len);
-    if (ret == -1) {
-        std::stringstream msg;
-        char errbuf[256];
-        msg << "Cannot write to pid file '" << filename << "': "
-            << strerror_r(errno, errbuf, sizeof(errbuf));
-        Messaging::message(Messaging::ERROR, msg.str());
-    }
-    close(fd);
-}
-
-/**
  * @brief Prints help message and exits.
  */
 static void help() {
@@ -232,8 +204,13 @@ static void authcheck(Environment *e) {
 /**
  * @brief Daemonizes.
  */
+int retfd[2] = {};
+unsigned char res = 0;
 static void daemonize(Environment *e) {
     pid_t pid;
+    char buffer[40];
+    int len;
+    int fd;
 
     // Check if this process is already a daemon.
     if (getppid() == 1) {
@@ -243,6 +220,13 @@ static void daemonize(Environment *e) {
     // Do not wait for children.
     signal(SIGCHLD, SIG_IGN);
 
+    pipe(retfd);
+    fd = open(PID_FILE, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+    if (fd == -1 || flock(fd, LOCK_EX|LOCK_NB) || ftruncate(fd, 0)) {
+        fprintf(stderr, "Cannot create exclusive pid file '%s'\n", PID_FILE);
+        exit(EXIT_FAILURE);
+    }
+
     // Create child process.
     pid = fork();
     if (pid == -1) {
@@ -250,7 +234,14 @@ static void daemonize(Environment *e) {
         delete e;
         exit(EXIT_FAILURE);
     }
+    close(retfd[!!pid]);
     if (pid != 0) {
+        if (read(retfd[0],&res,1) != 1 || !res) {
+            fprintf(stderr,"daemon failed\n");
+            exit(EXIT_FAILURE);
+        };
+        len = snprintf(buffer, sizeof (buffer), "%d", pid);
+        write(fd, buffer, len);
         // Exit calling process.
         exit(EXIT_SUCCESS);
     }
@@ -391,11 +382,6 @@ int main(int argc, char *argv[]) {
 
     Messaging::setLevel((Messaging::Level) messageLevel);
 
-    // If daemonized write PID file.
-    if (daemonized) {
-        pidfile();
-    }
-
     Messaging::message(Messaging::DEBUG, "Starting on access scanning.");
 
     // Block signals.
@@ -420,6 +406,7 @@ int main(int argc, char *argv[]) {
     try {
         fp = new FanotifyPolling(e);
     } catch (FanotifyPolling::Status ex) {
+        if (daemonized) write(retfd[1],&res,1);
         Messaging::message(Messaging::ERROR,
                            "Failure starting fanotify listener.");
         delete e;
@@ -428,6 +415,9 @@ int main(int argc, char *argv[]) {
 
     Messaging::message(Messaging::INFORMATION, "On access scanning started.");
     if (daemonized) {
+        res = 1;
+        write(retfd[1],&res,1);
+        close(retfd[1]);
         pause();
     } else {
         printf("Press any key to terminate\n");

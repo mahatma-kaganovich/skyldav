@@ -109,16 +109,17 @@ static int configurationCallback(const char *key, const char *value, void *info)
         PID_FILE = strdup(value);
     } else if (!strcmp(key, "SCAN_OPTIONS")) {
 #ifndef CL_SCAN_STDOPT
-        uint32_t *op = (void*)&options;
+        uint32_t *op;
         int i = 0;
 
-        while (op < (void*)&options + sizeof(options) && value[i]) {
+        for (op = (void*)&options; op < (void*)&options + sizeof(options); op++) {
             while ((value[i] < '0' || value[i] > '9') && value[i]) i++;
+            if (!value[i]) break;
+            *op = 0;
             while (value[i] >= '0' && value[i] <= '9') {
                 *op = (*op)*10 + (value[i] - '0');
                 i++;
             }
-            op++;
         }
 #endif
     } else {
